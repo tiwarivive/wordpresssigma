@@ -16,11 +16,17 @@ pipeline {
                     sh """
                     echo "Checking and cleaning up Docker environment..."
 
-                    # Stop and remove running containers
-                    if [ \$(docker ps -q | wc -l) -gt 0 ]; then
-                        echo "Stopping and removing running containers..."
-                        docker ps -q | xargs -r docker stop
-                        docker ps -aq | xargs -r docker rm
+                    # Stop and remove MySQL and WordPress containers if they exist
+                    if [ \$(docker ps -aq -f name=${MYSQL_CONTAINER} | wc -l) -gt 0 ]; then
+                        echo "Removing existing MySQL container..."
+                        docker stop ${MYSQL_CONTAINER} || true
+                        docker rm ${MYSQL_CONTAINER} || true
+                    fi
+
+                    if [ \$(docker ps -aq -f name=${WORDPRESS_CONTAINER} | wc -l) -gt 0 ]; then
+                        echo "Removing existing WordPress container..."
+                        docker stop ${WORDPRESS_CONTAINER} || true
+                        docker rm ${WORDPRESS_CONTAINER} || true
                     fi
 
                     # Remove existing Docker images
