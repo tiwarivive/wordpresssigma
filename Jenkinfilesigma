@@ -79,7 +79,7 @@ pipeline {
                         -e WORDPRESS_DB_NAME=wordpress_db \
                         -e WORDPRESS_DB_USER=wordpress_user \
                         -e WORDPRESS_DB_PASSWORD=wordpress_password \
-                        -p 8080:80 \
+                        -p 9090:80 \
                         ${DOCKER_IMAGE}
                     """
                 }
