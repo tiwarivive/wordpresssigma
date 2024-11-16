@@ -95,6 +95,7 @@ pipeline {
                 script {
                     sh """
                     echo "Running automated tests..."
+                    chmod +x ./run-tests.sh
                     ./run-tests.sh
                     """
                 }
