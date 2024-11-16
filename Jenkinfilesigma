@@ -8,9 +8,30 @@ pipeline {
         WORDPRESS_CONTAINER = "wordpress_container"
     }
     stages {
+        stage('Cleanup Docker Environment') {
+            steps {
+                script {
+                    // Remove all stopped containers and unused images
+                    sh """
+                    docker rm -f $(docker ps -aq) || true
+                    docker rmi -f $(docker images -q) || true
+                    docker volume prune -f || true
+                    docker network prune -f || true
+                    """
+                }
+            }
+        }
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/tiwarivive/wordpresssigma.git'
+            }
+        }
+        stage('Pull Docker Image') {
+            steps {
+                script {
+                    // Pull latest WordPress base image
+                    sh "docker pull wordpress:latest"
+                }
             }
         }
         stage('Build Docker Image') {
@@ -51,6 +72,14 @@ pipeline {
                 }
             }
         }
+        stage('Run Tests') {
+            steps {
+                script {
+                    // Execute tests
+                    sh "chmod +x ./run-tests.sh && ./run-tests.sh"
+                }
+            }
+        }
         stage('Deploy CloudFormation') {
             steps {
                 script {
@@ -77,12 +106,19 @@ pipeline {
     post {
         always {
             script {
-                // Clean up Docker containers
+                // Clean up running containers after the pipeline
                 sh """
                 docker stop ${WORDPRESS_CONTAINER} ${MYSQL_CONTAINER} || true
                 docker rm ${WORDPRESS_CONTAINER} ${MYSQL_CONTAINER} || true
                 """
-                echo 'Cleaned up Docker containers.'
+                // Clean up unused images and containers
+                sh """
+                docker rmi -f $(docker images -q) || true
+                docker rm -f $(docker ps -aq) || true
+                docker volume prune -f || true
+                docker network prune -f || true
+                """
+                echo 'Cleaned up Docker environment to prevent disk space issues.'
             }
         }
     }
