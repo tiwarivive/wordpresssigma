@@ -14,18 +14,22 @@ pipeline {
             steps {
                 script {
                     sh """
-                    # Remove running containers
+                    echo "Checking and cleaning up Docker environment..."
+
+                    # Stop and remove running containers
                     if [ \$(docker ps -q | wc -l) -gt 0 ]; then
                         echo "Stopping and removing running containers..."
-                        docker stop \$(docker ps -q)
-                        docker rm \$(docker ps -q)
+                        docker ps -q | xargs -r docker stop
+                        docker ps -aq | xargs -r docker rm
                     fi
 
                     # Remove existing Docker images
                     if [ \$(docker images -q | wc -l) -gt 0 ]; then
                         echo "Removing existing Docker images..."
-                        docker rmi -f \$(docker images -q)
+                        docker images -q | xargs -r docker rmi -f
                     fi
+
+                    # Prune unused Docker volumes and networks
                     docker volume prune -f || true
                     docker network prune -f || true
                     """
@@ -93,15 +97,16 @@ pipeline {
                 sh """
                 # Stop and remove running containers
                 if [ \$(docker ps -q | wc -l) -gt 0 ]; then
-                    docker stop \$(docker ps -q)
-                    docker rm \$(docker ps -q)
+                    docker ps -q | xargs -r docker stop
+                    docker ps -aq | xargs -r docker rm
                 fi
 
-                # Remove unused images
+                # Remove unused Docker images
                 if [ \$(docker images -q | wc -l) -gt 0 ]; then
-                    docker rmi -f \$(docker images -q)
+                    docker images -q | xargs -r docker rmi -f
                 fi
 
+                # Prune unused Docker volumes and networks
                 docker volume prune -f || true
                 docker network prune -f || true
                 """
