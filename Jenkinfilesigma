@@ -13,12 +13,17 @@ pipeline {
         stage('Cleanup Docker Environment') {
             steps {
                 script {
-                    // Cleanup only if containers or images exist
                     sh """
-                    if [ \$(docker ps -aq | wc -l) -gt 0 ]; then
-                        docker rm -f \$(docker ps -aq)
+                    # Remove running containers
+                    if [ \$(docker ps -q | wc -l) -gt 0 ]; then
+                        echo "Stopping and removing running containers..."
+                        docker stop \$(docker ps -q)
+                        docker rm \$(docker ps -q)
                     fi
+
+                    # Remove existing Docker images
                     if [ \$(docker images -q | wc -l) -gt 0 ]; then
+                        echo "Removing existing Docker images..."
                         docker rmi -f \$(docker images -q)
                     fi
                     docker volume prune -f || true
@@ -36,6 +41,7 @@ pipeline {
             steps {
                 script {
                     sh """
+                    echo "Pulling base images..."
                     docker pull ${BASE_WORDPRESS_IMAGE}
                     docker pull ${BASE_MYSQL_IMAGE}
                     """
@@ -46,7 +52,8 @@ pipeline {
             steps {
                 script {
                     sh """
-                    docker build -t ${DOCKER_IMAGE} .
+                    echo "Building Docker image..."
+                    docker build -t ${DOCKER_IMAGE} --build-arg BASE_IMAGE=${BASE_WORDPRESS_IMAGE} .
                     """
                 }
             }
@@ -55,6 +62,7 @@ pipeline {
             steps {
                 script {
                     sh """
+                    echo "Starting MySQL container..."
                     docker run -d \
                         --name ${MYSQL_CONTAINER} \
                         -e MYSQL_ROOT_PASSWORD=root_password \
@@ -62,9 +70,8 @@ pipeline {
                         -e MYSQL_USER=wordpress_user \
                         -e MYSQL_PASSWORD=wordpress_password \
                         ${BASE_MYSQL_IMAGE}
-                    """
 
-                    sh """
+                    echo "Starting WordPress container..."
                     docker run -d \
                         --name ${WORDPRESS_CONTAINER} \
                         --link ${MYSQL_CONTAINER}:mysql \
@@ -82,14 +89,15 @@ pipeline {
     post {
         always {
             script {
+                echo "Cleaning up Docker environment after pipeline execution..."
                 sh """
-                # Cleanup running containers
+                # Stop and remove running containers
                 if [ \$(docker ps -q | wc -l) -gt 0 ]; then
                     docker stop \$(docker ps -q)
                     docker rm \$(docker ps -q)
                 fi
 
-                # Cleanup unused images
+                # Remove unused images
                 if [ \$(docker images -q | wc -l) -gt 0 ]; then
                     docker rmi -f \$(docker images -q)
                 fi
@@ -97,7 +105,6 @@ pipeline {
                 docker volume prune -f || true
                 docker network prune -f || true
                 """
-                echo 'Cleaned up Docker environment to prevent disk space issues.'
             }
         }
     }
