@@ -7,15 +7,20 @@ pipeline {
         MYSQL_CONTAINER = "mysql_container"
         WORDPRESS_CONTAINER = "wordpress_container"
         BASE_WORDPRESS_IMAGE = "wordpress:php8.1-apache"
-        BASE_MYSQL_IMAGE = "mysql:5.7-slim"
+        BASE_MYSQL_IMAGE = "mysql:5.7"
     }
     stages {
         stage('Cleanup Docker Environment') {
             steps {
                 script {
+                    // Cleanup only if containers or images exist
                     sh """
-                    docker rm -f \$(docker ps -aq) || true
-                    docker rmi -f \$(docker images -q) || true
+                    if [ \$(docker ps -aq | wc -l) -gt 0 ]; then
+                        docker rm -f \$(docker ps -aq)
+                    fi
+                    if [ \$(docker images -q | wc -l) -gt 0 ]; then
+                        docker rmi -f \$(docker images -q)
+                    fi
                     docker volume prune -f || true
                     docker network prune -f || true
                     """
@@ -78,10 +83,17 @@ pipeline {
         always {
             script {
                 sh """
-                docker stop ${WORDPRESS_CONTAINER} ${MYSQL_CONTAINER} || true
-                docker rm ${WORDPRESS_CONTAINER} ${MYSQL_CONTAINER} || true
-                docker rmi -f \$(docker images -q) || true
-                docker rm -f \$(docker ps -aq) || true
+                # Cleanup running containers
+                if [ \$(docker ps -q | wc -l) -gt 0 ]; then
+                    docker stop \$(docker ps -q)
+                    docker rm \$(docker ps -q)
+                fi
+
+                # Cleanup unused images
+                if [ \$(docker images -q | wc -l) -gt 0 ]; then
+                    docker rmi -f \$(docker images -q)
+                fi
+
                 docker volume prune -f || true
                 docker network prune -f || true
                 """
