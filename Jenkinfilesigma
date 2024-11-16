@@ -4,6 +4,8 @@ pipeline {
         DOCKER_IMAGE = "wordpress-app"
         AWS_REGION = "ap-south-1"
         S3_BUCKET = "my-wordpress-deployments"
+        MYSQL_CONTAINER = "mysql_container"
+        WORDPRESS_CONTAINER = "wordpress_container"
     }
     stages {
         stage('Checkout Code') {
@@ -14,16 +16,41 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh 'docker-compose build'
+                    sh """
+                    docker build -t ${DOCKER_IMAGE} .
+                    """
                 }
             }
         }
         stage('Run Tests') {
             steps {
                 script {
-                    sh 'docker-compose up -d'
-                    sh 'chmod +x ./run-tests.sh' // Ensure script is executable
-                    sh './run-tests.sh'
+                    // Start MySQL Container
+                    sh """
+                    docker run -d \
+                        --name ${MYSQL_CONTAINER} \
+                        -e MYSQL_ROOT_PASSWORD=root_password \
+                        -e MYSQL_DATABASE=wordpress_db \
+                        -e MYSQL_USER=wordpress_user \
+                        -e MYSQL_PASSWORD=wordpress_password \
+                        mysql:5.7
+                    """
+                    
+                    // Start WordPress Container
+                    sh """
+                    docker run -d \
+                        --name ${WORDPRESS_CONTAINER} \
+                        --link ${MYSQL_CONTAINER}:mysql \
+                        -e WORDPRESS_DB_HOST=${MYSQL_CONTAINER}:3306 \
+                        -e WORDPRESS_DB_NAME=wordpress_db \
+                        -e WORDPRESS_DB_USER=wordpress_user \
+                        -e WORDPRESS_DB_PASSWORD=wordpress_password \
+                        -p 8080:80 \
+                        ${DOCKER_IMAGE}
+                    """
+
+                    // Run Tests
+                    sh "chmod +x ./run-tests.sh && ./run-tests.sh"
                 }
             }
         }
@@ -53,7 +80,11 @@ pipeline {
     post {
         always {
             script {
-                sh 'docker-compose down'
+                // Clean up Docker containers
+                sh """
+                docker stop ${WORDPRESS_CONTAINER} ${MYSQL_CONTAINER} || true
+                docker rm ${WORDPRESS_CONTAINER} ${MYSQL_CONTAINER} || true
+                """
                 echo 'Cleaned up Docker containers.'
             }
         }
