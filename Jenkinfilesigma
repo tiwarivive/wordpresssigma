@@ -8,7 +8,7 @@ pipeline {
         WORDPRESS_CONTAINER = "wordpress_container"
         BASE_WORDPRESS_IMAGE = "wordpress:php8.1-apache"
         BASE_MYSQL_IMAGE = "mysql:5.7"
-        KEEP_CONTAINERS_RUNNING = "true" // Set to 'true' to keep containers running
+        KEEP_CONTAINERS_RUNNING = "true"
     }
     stages {
         stage('Cleanup Docker Environment') {
@@ -18,26 +18,16 @@ pipeline {
                     echo "Checking and cleaning up Docker environment..."
 
                     if [ "${KEEP_CONTAINERS_RUNNING}" != "true" ]; then
-                        # Stop and remove MySQL and WordPress containers if they exist
                         if [ \$(docker ps -aq -f name=${MYSQL_CONTAINER} | wc -l) -gt 0 ]; then
-                            echo "Removing existing MySQL container..."
                             docker stop ${MYSQL_CONTAINER} || true
                             docker rm ${MYSQL_CONTAINER} || true
                         fi
 
                         if [ \$(docker ps -aq -f name=${WORDPRESS_CONTAINER} | wc -l) -gt 0 ]; then
-                            echo "Removing existing WordPress container..."
                             docker stop ${WORDPRESS_CONTAINER} || true
                             docker rm ${WORDPRESS_CONTAINER} || true
                         fi
 
-                        # Remove existing Docker images
-                        if [ \$(docker images -q | wc -l) -gt 0 ]; then
-                            echo "Removing existing Docker images..."
-                            docker images -q | xargs -r docker rmi -f
-                        fi
-
-                        # Prune unused Docker volumes and networks
                         docker volume prune -f || true
                         docker network prune -f || true
                     else
@@ -100,6 +90,16 @@ pipeline {
                 }
             }
         }
+        stage('Run Automated Tests') {
+            steps {
+                script {
+                    sh """
+                    echo "Running automated tests..."
+                    ./run-tests.sh
+                    """
+                }
+            }
+        }
     }
     post {
         always {
@@ -107,18 +107,11 @@ pipeline {
                 if (env.KEEP_CONTAINERS_RUNNING != "true") {
                     echo "Cleaning up Docker environment after pipeline execution..."
                     sh """
-                    # Stop and remove running containers
                     if [ \$(docker ps -q | wc -l) -gt 0 ]; then
                         docker ps -q | xargs -r docker stop
                         docker ps -aq | xargs -r docker rm
                     fi
 
-                    # Remove unused Docker images
-                    if [ \$(docker images -q | wc -l) -gt 0 ]; then
-                        docker images -q | xargs -r docker rmi -f
-                    fi
-
-                    # Prune unused Docker volumes and networks
                     docker volume prune -f || true
                     docker network prune -f || true
                     """
