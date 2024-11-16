@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Deploy an EC2 instance and an S3 bucket in the default VPC with security configurations.
+Description: Deploy an Ubuntu EC2 instance and an S3 bucket in the default VPC, dynamically selecting a subnet.
 
 Parameters:
   InstanceType:
@@ -14,8 +14,18 @@ Parameters:
 
   KeyName:
     Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
-    Type: AWS::EC2::KeyPair::wordpress-containerization
+    Type: AWS::EC2::KeyPair::KeyName
     ConstraintDescription: Must be the name of an existing EC2 KeyPair.
+
+  DefaultVpcId:
+    Description: The ID of the default VPC
+    Type: AWS::EC2::VPC::Id
+
+Mappings:
+  AvailabilityZones:
+    ap-south-1:
+      ZoneA: subnet-806c9aeb  # Replace with your subnet ID in ap-south-1a
+      ZoneB: subnet-4bf6d107  # Replace with your subnet ID in ap-south-1b
 
 Resources:
   SecurityGroup:
@@ -33,26 +43,18 @@ Resources:
           ToPort: 80
           CidrIp: 0.0.0.0/0
 
-  DefaultVpcId:
-    Type: AWS::EC2::VPC::Id
-    Description: Default VPC
-
-  DefaultSubnetId:
-    Type: AWS::EC2::Subnet::Id
-    Description: Subnet in the default VPC
-
   EC2Instance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: !Ref InstanceType
       KeyName: !Ref KeyName
-      SubnetId: !Ref DefaultSubnetId
+      SubnetId: !FindInMap [AvailabilityZones, ap-south-1, ZoneA]  # Dynamically selects subnet in ap-south-1a
       SecurityGroupIds:
         - !Ref SecurityGroup
-      ImageId: ami-0c55b159cbfafe1f0 # Replace with a valid AMI ID for your region
+      ImageId: ami-0dee22c13ea7a9a67  # Ubuntu 22.04 LTS AMI ID for ap-south-1
       Tags:
         - Key: Name
-          Value: ExampleInstance
+          Value: UbuntuInstance
 
   S3Bucket:
     Type: AWS::S3::Bucket
