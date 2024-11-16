@@ -2,20 +2,18 @@ pipeline {
     agent any
     environment {
         DOCKER_IMAGE = "wordpress-app"
-        AWS_REGION = "ap-south-1"
-        S3_BUCKET = "my-wordpress-deployments"
         MYSQL_CONTAINER = "mysql_container"
         WORDPRESS_CONTAINER = "wordpress_container"
         BASE_WORDPRESS_IMAGE = "wordpress:php8.1-apache"
         BASE_MYSQL_IMAGE = "mysql:5.7"
-        KEEP_CONTAINERS_RUNNING = "true"
+        KEEP_CONTAINERS_RUNNING = "true" // Set to 'true' to keep containers running after deployment
     }
     stages {
         stage('Cleanup Docker Environment') {
             steps {
                 script {
                     sh """
-                    echo "Checking and cleaning up Docker environment..."
+                    echo "Cleaning up Docker environment..."
 
                     if [ "${KEEP_CONTAINERS_RUNNING}" != "true" ]; then
                         if [ \$(docker ps -aq -f name=${MYSQL_CONTAINER} | wc -l) -gt 0 ]; then
@@ -42,7 +40,7 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/tiwarivive/wordpresssigma.git'
             }
         }
-        stage('Pull Lightweight Base Images') {
+        stage('Pull Base Images') {
             steps {
                 script {
                     sh """
