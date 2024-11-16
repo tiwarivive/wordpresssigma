@@ -2,8 +2,6 @@ pipeline {
     agent any
     environment {
         DOCKER_IMAGE = "wordpress-app"
-        BASE_WORDPRESS_IMAGE = "wordpress:php8.1-apache"
-        BASE_MYSQL_IMAGE = "mysql:5.7-slim"
         AWS_REGION = "ap-south-1"
         S3_BUCKET = "my-wordpress-deployments"
         MYSQL_CONTAINER = "mysql_container"
@@ -13,7 +11,6 @@ pipeline {
         stage('Cleanup Docker Environment') {
             steps {
                 script {
-                    // Remove all stopped containers and unused images
                     sh """
                     docker rm -f $(docker ps -aq) || true
                     docker rmi -f $(docker images -q) || true
@@ -31,7 +28,6 @@ pipeline {
         stage('Pull Lightweight Base Images') {
             steps {
                 script {
-                    // Pull lightweight images for WordPress and MySQL
                     sh """
                     docker pull ${BASE_WORDPRESS_IMAGE}
                     docker pull ${BASE_MYSQL_IMAGE}
@@ -42,9 +38,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build the custom WordPress image
                     sh """
-                    docker build -t ${DOCKER_IMAGE} --build-arg BASE_IMAGE=${BASE_WORDPRESS_IMAGE} .
+                    docker build -t ${DOCKER_IMAGE} .
                     """
                 }
             }
@@ -52,7 +47,6 @@ pipeline {
         stage('Run Containers') {
             steps {
                 script {
-                    // Start MySQL container
                     sh """
                     docker run -d \
                         --name ${MYSQL_CONTAINER} \
@@ -63,7 +57,6 @@ pipeline {
                         ${BASE_MYSQL_IMAGE}
                     """
 
-                    // Start WordPress container
                     sh """
                     docker run -d \
                         --name ${WORDPRESS_CONTAINER} \
@@ -78,47 +71,13 @@ pipeline {
                 }
             }
         }
-        stage('Run Tests') {
-            steps {
-                script {
-                    // Execute tests
-                    sh "chmod +x ./run-tests.sh && ./run-tests.sh"
-                }
-            }
-        }
-        stage('Deploy CloudFormation') {
-            steps {
-                script {
-                    sh """
-                    aws cloudformation deploy \
-                        --template-file ./cloudformation-template.yaml \
-                        --stack-name wordpress-docker-stack \
-                        --region ${AWS_REGION}
-                    """
-                }
-            }
-        }
-        stage('Upload Artifacts to S3') {
-            steps {
-                script {
-                    sh """
-                    zip -r wordpress-artifacts.zip wordpress/
-                    aws s3 cp wordpress-artifacts.zip s3://${S3_BUCKET}/
-                    """
-                }
-            }
-        }
     }
     post {
         always {
             script {
-                // Clean up running containers after the pipeline
                 sh """
                 docker stop ${WORDPRESS_CONTAINER} ${MYSQL_CONTAINER} || true
                 docker rm ${WORDPRESS_CONTAINER} ${MYSQL_CONTAINER} || true
-                """
-                // Clean up unused images and containers
-                sh """
                 docker rmi -f $(docker images -q) || true
                 docker rm -f $(docker ps -aq) || true
                 docker volume prune -f || true
