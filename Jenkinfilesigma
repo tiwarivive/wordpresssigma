@@ -2,6 +2,8 @@ pipeline {
     agent any
     environment {
         DOCKER_IMAGE = "wordpress-app"
+        BASE_WORDPRESS_IMAGE = "wordpress:php8.1-apache"
+        BASE_MYSQL_IMAGE = "mysql:5.7-slim"
         AWS_REGION = "ap-south-1"
         S3_BUCKET = "my-wordpress-deployments"
         MYSQL_CONTAINER = "mysql_container"
@@ -26,19 +28,23 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/tiwarivive/wordpresssigma.git'
             }
         }
-        stage('Pull Docker Image') {
+        stage('Pull Lightweight Base Images') {
             steps {
                 script {
-                    // Pull latest WordPress base image
-                    sh "docker pull wordpress:latest"
+                    // Pull lightweight images for WordPress and MySQL
+                    sh """
+                    docker pull ${BASE_WORDPRESS_IMAGE}
+                    docker pull ${BASE_MYSQL_IMAGE}
+                    """
                 }
             }
         }
         stage('Build Docker Image') {
             steps {
                 script {
+                    // Build the custom WordPress image
                     sh """
-                    docker build -t ${DOCKER_IMAGE} .
+                    docker build -t ${DOCKER_IMAGE} --build-arg BASE_IMAGE=${BASE_WORDPRESS_IMAGE} .
                     """
                 }
             }
@@ -54,7 +60,7 @@ pipeline {
                         -e MYSQL_DATABASE=wordpress_db \
                         -e MYSQL_USER=wordpress_user \
                         -e MYSQL_PASSWORD=wordpress_password \
-                        mysql:5.7
+                        ${BASE_MYSQL_IMAGE}
                     """
 
                     // Start WordPress container
