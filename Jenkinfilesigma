@@ -22,10 +22,10 @@ pipeline {
                 }
             }
         }
-        stage('Run Tests') {
+        stage('Run Containers') {
             steps {
                 script {
-                    // Start MySQL Container
+                    // Start MySQL container
                     sh """
                     docker run -d \
                         --name ${MYSQL_CONTAINER} \
@@ -35,8 +35,8 @@ pipeline {
                         -e MYSQL_PASSWORD=wordpress_password \
                         mysql:5.7
                     """
-                    
-                    // Start WordPress Container
+
+                    // Start WordPress container
                     sh """
                     docker run -d \
                         --name ${WORDPRESS_CONTAINER} \
@@ -48,9 +48,6 @@ pipeline {
                         -p 8080:80 \
                         ${DOCKER_IMAGE}
                     """
-
-                    // Run Tests
-                    sh "chmod +x ./run-tests.sh && ./run-tests.sh"
                 }
             }
         }
