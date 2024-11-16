@@ -90,15 +90,9 @@ pipeline {
                 }
             }
         }
-        stage('Run Automated Tests') {
+        stage('Trigger Testing Job') {
             steps {
-                script {
-                    sh """
-                    echo "Running automated tests..."
-                    chmod +x ./run-tests.sh
-                    ./run-tests.sh
-                    """
-                }
+                build job: 'Run-Tests', parameters: []
             }
         }
     }
