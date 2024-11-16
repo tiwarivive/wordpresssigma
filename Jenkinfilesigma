@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/<your-username>/wordpress-docker.git'
+                git branch: 'main', url: 'https://github.com/tiwarivive/wordpresssigma.git'
             }
         }
         stage('Build Docker Image') {
@@ -26,7 +26,7 @@ pipeline {
         stage('Deploy CloudFormation') {
             steps {
                 sh '''
-                aws cloudformation deploy                 --template-file ./cloudformation-template.yaml                 --stack-name wordpress-docker-stack                 --region ${AWS_REGION}
+                aws cloudformation deploy --template-file ./cloudformation-template.yaml --stack-name wordpress-docker-stack                 --region ${AWS_REGION}
                 '''
             }
         }
