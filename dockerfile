@@ -7,3 +7,4 @@ RUN mkdir -p /var/www/html/wp-content
 
 # Copy custom wp-content directory (if it exists)
 COPY ./wp-content /var/www/html/wp-content
+
