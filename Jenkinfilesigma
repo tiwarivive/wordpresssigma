@@ -1,0 +1,47 @@
+groovy
+pipeline {
+    agent any
+    environment {
+        DOCKER_IMAGE = "wordpress-app"
+        AWS_REGION = "ap-south-1"
+        S3_BUCKET = "my-wordpress-deployments"
+    }
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/<your-username>/wordpress-docker.git'
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker-compose build'
+            }
+        }
+        stage('Run Tests') {
+            steps {
+                sh 'docker-compose up -d'
+                sh './run-tests.sh'
+            }
+        }
+        stage('Deploy CloudFormation') {
+            steps {
+                sh '''
+                aws cloudformation deploy                 --template-file ./cloudformation-template.yaml                 --stack-name wordpress-docker-stack                 --region ${AWS_REGION}
+                '''
+            }
+        }
+        stage('Upload Artifacts to S3') {
+            steps {
+                sh '''
+                zip -r wordpress-artifacts.zip wordpress/
+                aws s3 cp wordpress-artifacts.zip s3://${S3_BUCKET}/
+                '''
+            }
+        }
+    }
+    post {
+        always {
+            sh 'docker-compose down'
+        }
+    }
+}
