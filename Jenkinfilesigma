@@ -90,11 +90,6 @@ pipeline {
                 }
             }
         }
-        stage('Trigger Testing Job') {
-            steps {
-                build job: 'Run-Tests', parameters: []
-            }
-        }
     }
     post {
         always {
