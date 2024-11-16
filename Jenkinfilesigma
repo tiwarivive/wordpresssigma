@@ -1,4 +1,3 @@
-groovy
 pipeline {
     agent any
     environment {
@@ -14,34 +13,49 @@ pipeline {
         }
         stage('Build Docker Image') {
             steps {
-                sh 'docker-compose build'
+                script {
+                    sh 'docker-compose build'
+                }
             }
         }
         stage('Run Tests') {
             steps {
-                sh 'docker-compose up -d'
-                sh './run-tests.sh'
+                script {
+                    sh 'docker-compose up -d'
+                    sh 'chmod +x ./run-tests.sh' // Ensure script is executable
+                    sh './run-tests.sh'
+                }
             }
         }
         stage('Deploy CloudFormation') {
             steps {
-                sh '''
-                aws cloudformation deploy --template-file ./cloudformation-template.yaml --stack-name wordpress-docker-stack                 --region ${AWS_REGION}
-                '''
+                script {
+                    sh """
+                    aws cloudformation deploy \
+                        --template-file ./cloudformation-template.yaml \
+                        --stack-name wordpress-docker-stack \
+                        --region ${AWS_REGION}
+                    """
+                }
             }
         }
         stage('Upload Artifacts to S3') {
             steps {
-                sh '''
-                zip -r wordpress-artifacts.zip wordpress/
-                aws s3 cp wordpress-artifacts.zip s3://${S3_BUCKET}/
-                '''
+                script {
+                    sh """
+                    zip -r wordpress-artifacts.zip wordpress/
+                    aws s3 cp wordpress-artifacts.zip s3://${S3_BUCKET}/
+                    """
+                }
             }
         }
     }
     post {
         always {
-            sh 'docker-compose down'
+            script {
+                sh 'docker-compose down'
+                echo 'Cleaned up Docker containers.'
+            }
         }
     }
 }
