@@ -6,8 +6,7 @@ pipeline {
         WORDPRESS_CONTAINER = "wordpress_container"
         BASE_WORDPRESS_IMAGE = "wordpress:php8.1-apache"
         BASE_MYSQL_IMAGE = "mysql:5.7"
-        KEEP_CONTAINERS_RUNNING = "true" // Default value
-        EMAIL_RECIPIENT = "tiwarivive@gmail.com" // Email for notifications
+        KEEP_CONTAINERS_RUNNING = "true" // Set to 'true' to keep containers running after deployment
     }
     stages {
         stage('Cleanup Docker Environment') {
@@ -16,15 +15,15 @@ pipeline {
                     sh """
                     echo "Cleaning up Docker environment..."
 
-                    if [ "\${KEEP_CONTAINERS_RUNNING}" != "true" ]; then
-                        if [ \$(docker ps -aq -f name=\${MYSQL_CONTAINER} | wc -l) -gt 0 ]; then
-                            docker stop \${MYSQL_CONTAINER} || true
-                            docker rm \${MYSQL_CONTAINER} || true
+                    if [ "${KEEP_CONTAINERS_RUNNING}" != "true" ]; then
+                        if [ \$(docker ps -aq -f name=${MYSQL_CONTAINER} | wc -l) -gt 0 ]; then
+                            docker stop ${MYSQL_CONTAINER} || true
+                            docker rm ${MYSQL_CONTAINER} || true
                         fi
 
-                        if [ \$(docker ps -aq -f name=\${WORDPRESS_CONTAINER} | wc -l) -gt 0 ]; then
-                            docker stop \${WORDPRESS_CONTAINER} || true
-                            docker rm \${WORDPRESS_CONTAINER} || true
+                        if [ \$(docker ps -aq -f name=${WORDPRESS_CONTAINER} | wc -l) -gt 0 ]; then
+                            docker stop ${WORDPRESS_CONTAINER} || true
+                            docker rm ${WORDPRESS_CONTAINER} || true
                         fi
 
                         docker volume prune -f || true
@@ -46,8 +45,8 @@ pipeline {
                 script {
                     sh """
                     echo "Pulling base images..."
-                    docker pull \${BASE_WORDPRESS_IMAGE}
-                    docker pull \${BASE_MYSQL_IMAGE}
+                    docker pull ${BASE_WORDPRESS_IMAGE}
+                    docker pull ${BASE_MYSQL_IMAGE}
                     """
                 }
             }
@@ -57,7 +56,7 @@ pipeline {
                 script {
                     sh """
                     echo "Building Docker image..."
-                    docker build -t \${DOCKER_IMAGE} --build-arg BASE_IMAGE=\${BASE_WORDPRESS_IMAGE} .
+                    docker build -t ${DOCKER_IMAGE} --build-arg BASE_IMAGE=${BASE_WORDPRESS_IMAGE} .
                     """
                 }
             }
@@ -68,40 +67,23 @@ pipeline {
                     sh """
                     echo "Starting MySQL container..."
                     docker run -d \
-                        --name \${MYSQL_CONTAINER} \
+                        --name ${MYSQL_CONTAINER} \
                         -e MYSQL_ROOT_PASSWORD=root_password \
                         -e MYSQL_DATABASE=wordpress_db \
                         -e MYSQL_USER=wordpress_user \
                         -e MYSQL_PASSWORD=wordpress_password \
-                        \${BASE_MYSQL_IMAGE}
+                        ${BASE_MYSQL_IMAGE}
 
                     echo "Starting WordPress container..."
                     docker run -d \
-                        --name \${WORDPRESS_CONTAINER} \
-                        --link \${MYSQL_CONTAINER}:mysql \
-                        -e WORDPRESS_DB_HOST=\${MYSQL_CONTAINER}:3306 \
+                        --name ${WORDPRESS_CONTAINER} \
+                        --link ${MYSQL_CONTAINER}:mysql \
+                        -e WORDPRESS_DB_HOST=${MYSQL_CONTAINER}:3306 \
                         -e WORDPRESS_DB_NAME=wordpress_db \
                         -e WORDPRESS_DB_USER=wordpress_user \
                         -e WORDPRESS_DB_PASSWORD=wordpress_password \
                         -p 9090:80 \
-                        \${DOCKER_IMAGE}
-                    """
-                }
-            }
-        }
-        stage('Inline Testing') {
-            steps {
-                script {
-                    sh """
-                    echo "Running inline tests..."
-
-                    # Test if WordPress is running
-                    curl -s http://localhost:9090 | grep -q "WordPress" && echo "WordPress is running" || exit 1
-
-                    # Test database connection
-                    docker exec -it \${MYSQL_CONTAINER} mysqladmin ping -hlocalhost -uroot -proot_password || exit 1
-
-                    echo "All tests passed!"
+                        ${DOCKER_IMAGE}
                     """
                 }
             }
@@ -125,16 +107,6 @@ pipeline {
                     echo "Skipping cleanup as KEEP_CONTAINERS_RUNNING is set to true."
                 }
             }
-        }
-        success {
-            mail to: "${EMAIL_RECIPIENT}",
-                 subject: "Jenkins Pipeline Success: Deployment and Testing",
-                 body: "The pipeline completed successfully. All deployment and testing stages passed."
-        }
-        failure {
-            mail to: "${EMAIL_RECIPIENT}",
-                 subject: "Jenkins Pipeline Failure: Deployment or Testing",
-                 body: "The pipeline failed during one of the stages. Please check the Jenkins logs for more details."
         }
     }
 }
