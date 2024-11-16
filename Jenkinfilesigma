@@ -6,14 +6,16 @@ pipeline {
         S3_BUCKET = "my-wordpress-deployments"
         MYSQL_CONTAINER = "mysql_container"
         WORDPRESS_CONTAINER = "wordpress_container"
+        BASE_WORDPRESS_IMAGE = "wordpress:php8.1-apache"
+        BASE_MYSQL_IMAGE = "mysql:5.7-slim"
     }
     stages {
         stage('Cleanup Docker Environment') {
             steps {
                 script {
                     sh """
-                    docker rm -f $(docker ps -aq) || true
-                    docker rmi -f $(docker images -q) || true
+                    docker rm -f \$(docker ps -aq) || true
+                    docker rmi -f \$(docker images -q) || true
                     docker volume prune -f || true
                     docker network prune -f || true
                     """
@@ -78,8 +80,8 @@ pipeline {
                 sh """
                 docker stop ${WORDPRESS_CONTAINER} ${MYSQL_CONTAINER} || true
                 docker rm ${WORDPRESS_CONTAINER} ${MYSQL_CONTAINER} || true
-                docker rmi -f $(docker images -q) || true
-                docker rm -f $(docker ps -aq) || true
+                docker rmi -f \$(docker images -q) || true
+                docker rm -f \$(docker ps -aq) || true
                 docker volume prune -f || true
                 docker network prune -f || true
                 """
